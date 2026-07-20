@@ -1,0 +1,7 @@
+{
+  "name": "herdr-fusion",
+  "version": "0.1.0",
+  "description": "Fan one prompt out to multiple subscription CLI agents in side-by-side herdr panes, then converge them into one fused answer.",
+  "author": { "name": "Noah Calibuso" },
+  "homepage": "https://github.com/noahcalibuso/herdr-fusion"
+}

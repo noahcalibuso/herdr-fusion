@@ -1,0 +1,26 @@
+# Copy to ./fusion.toml (per-project) or ~/.config/herdr-fusion/config.toml (global).
+# A worker = slot name + the exact command that launches its interactive TUI.
+# Model and effort are whatever flags that CLI accepts — herdr has no model concept.
+# NOTE: defining any [workers.*] here replaces the built-in default set.
+#
+# Workers run UNATTENDED in background panes: a permission prompt they can't
+# answer stalls the run, so give each CLI its autonomous-mode flag
+# (claude: --permission-mode bypassPermissions, cursor-agent: --force).
+# Drop the flag if you'd rather approve tool calls in the panes yourself.
+
+[fusion]
+runner = "claude"   # worker slot whose CLI runs the merge, in a fresh pane
+
+[workers.claude]
+command = "claude --permission-mode bypassPermissions --model opus"
+# thinking budget via env if desired:
+# command = "env MAX_THINKING_TOKENS=32000 claude --permission-mode bypassPermissions --model opus"
+
+[workers.gpt]
+# verify model names with: cursor-agent --list-models
+command = "cursor-agent --force --model gpt-5.2"
+
+[workers.grok]
+command = "cursor-agent --force --model grok-4"
+# parameterized models accept bracket overrides (cursor-agent's effort knob):
+# command = "cursor-agent --force --model 'claude-opus-4-8[effort=high]'"
