@@ -11,7 +11,7 @@ definitive result, with inline attribution and a consensus/divergence report.
 ```
 ┌────────────┬────────────┬────────────┐
 │  CLAUDE    │    GPT     │    GROK    │   ← same prompt, independent answers
-│  claude    │ cursor-agent│ cursor-agent│
+│  claude    │  pi-agent  │  pi-agent  │
 ├────────────┴────────────┴────────────┤
 │               FUSION                 │   ← merges all answers → fused.md
 └──────────────────────────────────────┘
