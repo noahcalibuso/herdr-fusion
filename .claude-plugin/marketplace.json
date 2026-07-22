@@ -1,0 +1,11 @@
+{
+  "name": "herdr-fusion",
+  "owner": { "name": "Noah Calibuso" },
+  "plugins": [
+    {
+      "name": "herdr-fusion",
+      "source": "./",
+      "description": "Fan one prompt out to multiple subscription CLI agents in side-by-side herdr panes, then converge them into one fused answer."
+    }
+  ]
+}
