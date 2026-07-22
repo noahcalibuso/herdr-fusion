@@ -29,7 +29,7 @@ def test_load_config_defaults(monkeypatch, tmp_path):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     cfg = load_config()
     assert cfg["fusion"]["runner"] == "claude"
-    assert set(cfg["workers"]) == {"claude", "gpt", "grok"}
+    assert set(cfg["workers"]) == {"claude", "gpt"}
 
 
 def test_load_config_workers_replace_defaults(tmp_path):

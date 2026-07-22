@@ -11,8 +11,9 @@ to several models, let them answer independently, then have a fresh agent critic
 answers into one. But it does it by spawning `pi --mode json -p` subprocesses billed per token.
 
 I wanted the same fan-out-then-converge shape running on the **subscription CLIs I already pay
-for** — Claude Code on my Claude plan, GPT and Grok through `cursor-agent` on my Cursor plan —
-so a run costs nothing marginal. Those tools are interactive TUIs, not batch subprocesses. That
+for** — Claude Code on my Claude plan, GPT through `pi` on the native `openai-codex` provider
+(other models drop in via config) — so a run costs nothing marginal. Those tools are interactive
+TUIs, not batch subprocesses. That
 one constraint is the whole engineering problem.
 
 ## The core tension

@@ -26,8 +26,7 @@ DEFAULT_CONFIG: dict = {
     "fusion": {"runner": "claude"},
     "workers": {
         "claude": {"command": "claude --permission-mode bypassPermissions"},
-        "gpt": {"command": "cursor-agent --force --model gpt-5.2"},
-        "grok": {"command": "cursor-agent --force --model grok-4"},
+        "gpt": {"command": "pi --provider openai-codex --model gpt-5.6-sol --thinking high --approve"},
     },
 }
 

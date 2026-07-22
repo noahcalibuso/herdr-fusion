@@ -5,7 +5,7 @@
 #
 # Workers run UNATTENDED in background panes: a permission prompt they can't
 # answer stalls the run, so give each CLI its autonomous-mode flag
-# (claude: --permission-mode bypassPermissions, cursor-agent: --force).
+# (claude: --permission-mode bypassPermissions, pi: --approve, cursor-agent: --force).
 # Drop the flag if you'd rather approve tool calls in the panes yourself.
 
 [fusion]
@@ -17,10 +17,9 @@ command = "claude --permission-mode bypassPermissions --model opus"
 # command = "env MAX_THINKING_TOKENS=32000 claude --permission-mode bypassPermissions --model opus"
 
 [workers.gpt]
-# verify model names with: cursor-agent --list-models
-command = "cursor-agent --force --model gpt-5.2"
+# pi drives GPT via the native openai-codex provider (no cursor). List models: pi --list-models
+command = "pi --provider openai-codex --model gpt-5.6-sol --thinking high --approve"
 
-[workers.grok]
-command = "cursor-agent --force --model grok-4"
-# parameterized models accept bracket overrides (cursor-agent's effort knob):
-# command = "cursor-agent --force --model 'claude-opus-4-8[effort=high]'"
+# Other backends work too — e.g. cursor-agent (verify names with: cursor-agent --list-models):
+# [workers.grok]
+# command = "cursor-agent --force --model grok-4"
