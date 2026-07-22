@@ -7,6 +7,7 @@ IDs are always parsed from responses, never constructed.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -120,6 +121,14 @@ def peers_line(worker: Worker, workers: list[Worker]) -> str:
     return ", ".join(f"{w.role} ({w.command})" for w in others) or "none"
 
 
+def tab_slug(mode: str, prompt: str, limit: int = 48) -> str:
+    """Short one-line tab label from the request, e.g. 'fuse: rate limiter design'."""
+    text = " ".join(prompt.split())
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0] + "…"
+    return f"{mode}: {text}" if text else mode
+
+
 def worker_prompt(mode: str, worker: Worker, workers: list[Worker],
                   answer_path: Path, prompt: str) -> str:
     template = "opinion.md" if mode == "opinion" else "worker.md"
@@ -203,6 +212,18 @@ class Harness:
                 "Start herdr (or pass --session) first."
             )
 
+    def rename_origin_tab(self, label: str):
+        """Relabel the tab this run was launched from (herdr sets HERDR_TAB_ID in
+        the launching pane) so it reads as the control tab for the fusion tab we
+        just opened. Best-effort — a failed rename never fails the run."""
+        origin = os.environ.get("HERDR_TAB_ID")
+        if not origin or origin == self.manifest.get("tab_id"):
+            return
+        try:
+            self.h("tab", "rename", origin, label)
+        except HerdrError:
+            pass
+
     def make_layout(self, label: str, n: int) -> list[str]:
         resp = self.h("tab", "create", "--label", label, "--cwd", str(self.cwd), "--no-focus")
         self.manifest["tab_id"] = deep_get(resp, "tab_id")
@@ -232,7 +253,7 @@ class Harness:
         if not top:
             raise HerdrError(f"tab create returned no pane_id: {resp}")
         resp = self.h("pane", "split", str(top), "--direction", "down",
-                      "--ratio", "0.35", "--no-focus", "--cwd", str(self.cwd))
+                      "--ratio", "0.4", "--no-focus", "--cwd", str(self.cwd))
         footer = deep_get(resp, "pane_id")
         if not footer:
             raise HerdrError(f"footer split returned no pane_id: {resp}")
@@ -370,6 +391,7 @@ def run(mode: str, prompt: str, cfg: dict, worker_names: list[str] | None = None
         fusion.pane_id = fusion_pane
     else:
         panes = hz.make_layout(f"fusion {run_id}", len(workers))
+    hz.rename_origin_tab(tab_slug(mode, prompt))
     for worker, pane in zip(workers, panes):
         worker.pane_id = pane
 

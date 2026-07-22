@@ -4,7 +4,7 @@ import pytest
 
 from herdr_fusion import harness
 from herdr_fusion.harness import (
-    Worker, deep_get, fill, listen_prompt, load_config, merge_prompt, worker_prompt,
+    Worker, deep_get, fill, listen_prompt, load_config, merge_prompt, tab_slug, worker_prompt,
 )
 
 WORKERS = [
@@ -77,6 +77,13 @@ def test_listen_prompt_polls_paths_without_inlining(tmp_path):
     assert "orig request" in out
     assert str(tmp_path / "fused.md") in out
     assert "{{" not in out                   # every placeholder filled
+
+
+def test_tab_slug_prefixes_mode_and_truncates():
+    assert tab_slug("fuse", "rate limiter design") == "fuse: rate limiter design"
+    long = tab_slug("opinion", "should we migrate from npm to pnpm and why exactly", limit=20)
+    assert long.startswith("opinion: ") and long.endswith("…") and len(long) < 40
+    assert tab_slug("fuse", "") == "fuse"       # empty prompt → bare mode, no trailing ': '
 
 
 def test_merge_prompt_custom_instruction(tmp_path):
