@@ -62,8 +62,8 @@ Or install the `herdr-fusion` command permanently:
 uv tool install git+https://github.com/noahcalibuso/herdr-fusion
 ```
 
-As a **Claude Code plugin** (adds the `/fusion` skill so a Claude session can launch a run and
-pull the fused answer back into its own context). Add this repo as a marketplace, then install
+As a **Claude Code plugin** (adds `/fusion` and `/opinion` skills so a Claude session can launch
+a run and pull the result back into its own context). Add this repo as a marketplace, then install
 from it:
 
 ```
