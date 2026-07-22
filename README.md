@@ -1,12 +1,10 @@
 # herdr-fusion
 
-[fusion-harness](https://github.com/disler/fusion-harness), rebuilt on [herdr](https://herdr.dev)
-panes and **subscription CLI agents** — no API keys, no per-token billing.
+![Python](https://img.shields.io/badge/python-3.12+-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Dependencies](https://img.shields.io/badge/runtime%20deps-0-brightgreen) ![Built on](https://img.shields.io/badge/built%20on-herdr-8a2be2)
 
-One prompt fans out to N coding agents running side by side in herdr panes (Claude Code on your
-Claude subscription; GPT and Grok through `cursor-agent` on your Cursor subscription). You watch
-them work in parallel. Then a fresh **fusion agent** critically merges the answers into one
-definitive result, with inline attribution and a consensus/divergence report.
+**Fan one prompt out to several subscription coding-agent CLIs running side by side, then have a
+fresh agent critically merge their answers into one.** No API keys, no per-token billing — it drives
+the interactive agent TUIs you already pay for.
 
 ```
 ┌────────────┬────────────┬────────────┐
@@ -16,6 +14,30 @@ definitive result, with inline attribution and a consensus/divergence report.
 │               FUSION                 │   ← merges all answers → fused.md
 └──────────────────────────────────────┘
 ```
+
+<!-- DEMO: replace with a recorded gif of a live run (see "Demo" below) -->
+> **Demo:** _recording coming — a real fan-out-then-converge run in herdr panes._
+
+A reimagining of [fusion-harness](https://github.com/disler/fusion-harness) rebuilt on
+[herdr](https://herdr.dev) panes and **subscription CLI agents**. One prompt fans out to N coding
+agents in parallel panes (Claude Code on your Claude plan; GPT and Grok via `cursor-agent` on your
+Cursor plan). You watch them work. Then a fresh **fusion agent** merges the answers into one
+definitive result with inline attribution and a consensus/divergence report.
+
+### What this project demonstrates
+
+- **Orchestrating *interactive* agent TUIs unattended** — launch detection, prompt submission, and
+  completion gating for tools built for a human at a keyboard, with no exit code or "done" event to
+  rely on.
+- **Zero runtime dependencies** — the whole harness is ~400 lines of standard-library Python behind
+  a single integration surface (the `herdr` CLI; IDs parsed from responses, never constructed).
+- **Graceful degradation** — completion detection combines agent-status polling with file-stability
+  and falls back cleanly when a CLI has no status integration.
+- **Fail-fast ergonomics** — a worker stuck on a first-run trust/login dialog raises immediately with
+  the pane's on-screen contents, instead of hanging until timeout.
+
+📐 **[Read the design notes / case study →](DESIGN.md)** for the architecture, the three decisions
+that mattered, and what I'd build next.
 
 ## Requirements
 
@@ -27,15 +49,25 @@ definitive result, with inline attribution and a consensus/divergence report.
 
 ## Install
 
+Try it with no install (npx-style, zero footprint):
+
+```bash
+uvx --from git+https://github.com/noahcalibuso/herdr-fusion herdr-fusion fuse "..."
+```
+
+Or install the `herdr-fusion` command permanently:
+
 ```bash
 uv tool install git+https://github.com/noahcalibuso/herdr-fusion
 ```
 
 As a **Claude Code plugin** (adds the `/fusion` skill so a Claude session can launch a run and
-pull the fused answer back into its own context):
+pull the fused answer back into its own context). Add this repo as a marketplace, then install
+from it:
 
 ```
-/plugin install noahcalibuso/herdr-fusion
+/plugin marketplace add noahcalibuso/herdr-fusion
+/plugin install herdr-fusion@herdr-fusion
 ```
 
 ## Usage
@@ -114,6 +146,13 @@ Handoff is file-based: each worker is told to write its complete answer to
 authoritative file paths. Completion gating: answer file exists + stopped growing + agent status
 `idle`/`done` (herdr reports `done` when the pane is backgrounded, `idle` when focused — both
 mean finished).
+
+## Demo
+
+To record the hero gif: start a herdr session, run
+`herdr-fusion fuse "Design a rate limiter for our API gateway."`, and screen-capture the tab as the
+panes fan out and the fusion pane zooms in to converge. Drop the file at `docs/demo.gif` and swap the
+placeholder line near the top of this README for `![demo](docs/demo.gif)`.
 
 ## Development
 

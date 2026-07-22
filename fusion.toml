@@ -1,0 +1,11 @@
+[fusion]
+runner = "claude"                # worker slot whose CLI runs the merge
+
+[workers.claude]
+command = "claude --permission-mode bypassPermissions"
+
+[workers.gpt]
+command = "pi --provider openai --model gpt-5-codex"
+
+[workers.grok]
+command = "pi --provider xai --model grok-4.5"
