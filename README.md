@@ -20,8 +20,9 @@ the interactive agent TUIs you already pay for.
 
 A reimagining of [fusion-harness](https://github.com/disler/fusion-harness) rebuilt on
 [herdr](https://herdr.dev) panes and **subscription CLI agents**. One prompt fans out to N coding
-agents in parallel panes (Claude Code on your Claude plan; GPT and Grok via `cursor-agent` on your
-Cursor plan). You watch them work. Then a fresh **fusion agent** merges the answers into one
+agents in parallel panes (Claude Code on your Claude plan; GPT via `pi` on the native `openai-codex`
+provider — swap in `cursor-agent`, extra models, or other CLIs via config). You watch them work.
+Then a fresh **fusion agent** merges the answers into one
 definitive result with inline attribution and a consensus/divergence report.
 
 ### What this project demonstrates
@@ -106,14 +107,11 @@ runner = "claude"                # worker slot whose CLI runs the merge (fresh p
 command = "claude --permission-mode bypassPermissions --model opus"
 
 [workers.gpt]
-command = "cursor-agent --force --model gpt-5.2"
-
-[workers.grok]
-command = "cursor-agent --force --model grok-4"
+command = "pi --provider openai-codex --model gpt-5.6-sol --thinking high --approve"
 ```
 
 > **Workers run unattended.** A permission prompt nobody answers stalls the run, so the default
-> commands use each CLI's autonomous mode (`--permission-mode bypassPermissions` / `--force`) —
+> commands use each CLI's autonomous mode (`--permission-mode bypassPermissions` / `--approve` / `--force`) —
 > the same posture as fusion-harness's full-tool children. Drop those flags if you'd rather
 > approve tool calls in the panes yourself (you're watching them anyway); the run then waits on
 > you. First-time setup dialogs (folder trust, logins) must be answered once manually — the
@@ -122,8 +120,8 @@ command = "cursor-agent --force --model grok-4"
 A worker is just a slot name plus the exact command line to launch its interactive TUI — herdr
 has no model concept, so **model and effort are whatever flags that CLI accepts**:
 
-- `cursor-agent` parameterized models take bracket overrides: `cursor-agent --model 'claude-opus-4-8[effort=high]'`.
-  Verify names with `cursor-agent --list-models`.
+- `pi` selects backends with `--provider`/`--model` (`pi --list-models`); `cursor-agent` parameterized
+  models take bracket overrides: `cursor-agent --model 'claude-opus-4-8[effort=high]'`.
 - Claude Code takes `--model`; thinking budget via env: `command = "env MAX_THINKING_TOKENS=32000 claude"`.
 - Any agent CLI with a herdr integration works: `codex`, `pi`, `opencode`, ...
 
