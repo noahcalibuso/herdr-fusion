@@ -3,7 +3,9 @@ from pathlib import Path
 import pytest
 
 from herdr_fusion import harness
-from herdr_fusion.harness import Worker, deep_get, fill, load_config, merge_prompt, worker_prompt
+from herdr_fusion.harness import (
+    Worker, deep_get, fill, listen_prompt, load_config, merge_prompt, tab_slug, worker_prompt,
+)
 
 WORKERS = [
     Worker("claude", "claude --model opus"),
@@ -64,6 +66,24 @@ def test_merge_prompt_inlines_and_truncates(tmp_path):
     assert "[CLAUDE]" in out and "[GPT]" in out
     assert str(tmp_path / "fused.md") in out
     assert "do not simply concatenate" in out  # default instruction applied
+
+
+def test_listen_prompt_polls_paths_without_inlining(tmp_path):
+    # Listener is spawned BEFORE workers finish: it must name the paths to poll,
+    # carry a wait budget, and NOT inline answer text (there is none yet).
+    out = listen_prompt(WORKERS, tmp_path, tmp_path / "fused.md", "orig request", None, 900)
+    assert str(tmp_path / "claude.md") in out and str(tmp_path / "gpt.md") in out
+    assert "900" in out                      # wait budget interpolated
+    assert "orig request" in out
+    assert str(tmp_path / "fused.md") in out
+    assert "{{" not in out                   # every placeholder filled
+
+
+def test_tab_slug_prefixes_mode_and_truncates():
+    assert tab_slug("fuse", "rate limiter design") == "fuse: rate limiter design"
+    long = tab_slug("opinion", "should we migrate from npm to pnpm and why exactly", limit=20)
+    assert long.startswith("opinion: ") and long.endswith("…") and len(long) < 40
+    assert tab_slug("fuse", "") == "fuse"       # empty prompt → bare mode, no trailing ': '
 
 
 def test_merge_prompt_custom_instruction(tmp_path):

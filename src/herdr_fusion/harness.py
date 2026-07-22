@@ -7,6 +7,7 @@ IDs are always parsed from responses, never constructed.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -119,6 +120,14 @@ def peers_line(worker: Worker, workers: list[Worker]) -> str:
     return ", ".join(f"{w.role} ({w.command})" for w in others) or "none"
 
 
+def tab_slug(mode: str, prompt: str, limit: int = 48) -> str:
+    """Short one-line tab label from the request, e.g. 'fuse: rate limiter design'."""
+    text = " ".join(prompt.split())
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0] + "…"
+    return f"{mode}: {text}" if text else mode
+
+
 def worker_prompt(mode: str, worker: Worker, workers: list[Worker],
                   answer_path: Path, prompt: str) -> str:
     template = "opinion.md" if mode == "opinion" else "worker.md"
@@ -157,6 +166,24 @@ def merge_prompt(workers: list[Worker], run_dir: Path, fused_path: Path,
     })
 
 
+def listen_prompt(workers: list[Worker], run_dir: Path, fused_path: Path,
+                  prompt: str, instruction: str | None, wait_budget: float) -> str:
+    """Merge prompt for a fusion agent spawned BEFORE the workers finish: it is
+    told to poll for the answer files, not handed their (not-yet-written) text."""
+    instruction = instruction or (PROMPTS / "default_instruction.md").read_text().strip()
+    path_lines = [f"- [{w.role}] ({w.command}): {run_dir / f'{w.name}.md'}" for w in workers]
+    return fill("listen.md", {
+        "N": len(workers),
+        "FUSION_INSTRUCTION": instruction,
+        "RUN_TAG": "-".join(w.name for w in workers),
+        "ANSWER_PATH_LINES": "\n".join(path_lines),
+        "PROMPT": prompt,
+        "ROLE_EXAMPLES": " or ".join(f"[{w.role}]" for w in workers[:2]),
+        "FUSED_PATH": fused_path,
+        "WAIT_BUDGET": int(wait_budget),
+    })
+
+
 class Harness:
     def __init__(self, session: str, cwd: Path, run_dir: Path, echo=print, notify=True):
         self.session = session
@@ -184,6 +211,18 @@ class Harness:
                 "Start herdr (or pass --session) first."
             )
 
+    def rename_origin_tab(self, label: str):
+        """Relabel the tab this run was launched from (herdr sets HERDR_TAB_ID in
+        the launching pane) so it reads as the control tab for the fusion tab we
+        just opened. Best-effort — a failed rename never fails the run."""
+        origin = os.environ.get("HERDR_TAB_ID")
+        if not origin or origin == self.manifest.get("tab_id"):
+            return
+        try:
+            self.h("tab", "rename", origin, label)
+        except HerdrError:
+            pass
+
     def make_layout(self, label: str, n: int) -> list[str]:
         resp = self.h("tab", "create", "--label", label, "--cwd", str(self.cwd), "--no-focus")
         self.manifest["tab_id"] = deep_get(resp, "tab_id")
@@ -202,6 +241,31 @@ class Harness:
         # process-info readiness poll is the upgrade path.
         time.sleep(1.5)
         return panes
+
+    def make_fuse_layout(self, label: str, n_workers: int) -> tuple[list[str], str]:
+        """N worker panes across the top, one wide fusion-listener pane below them.
+        Split the footer off FIRST so it spans the full width before the top row
+        is divided into columns. Returns (worker_panes, footer_pane)."""
+        resp = self.h("tab", "create", "--label", label, "--cwd", str(self.cwd), "--no-focus")
+        self.manifest["tab_id"] = deep_get(resp, "tab_id")
+        top = deep_get(resp, "pane_id")
+        if not top:
+            raise HerdrError(f"tab create returned no pane_id: {resp}")
+        resp = self.h("pane", "split", str(top), "--direction", "down",
+                      "--ratio", "0.4", "--no-focus", "--cwd", str(self.cwd))
+        footer = deep_get(resp, "pane_id")
+        if not footer:
+            raise HerdrError(f"footer split returned no pane_id: {resp}")
+        panes = [str(top)]
+        for _ in range(n_workers - 1):
+            resp = self.h("pane", "split", panes[-1], "--direction", "right",
+                          "--no-focus", "--cwd", str(self.cwd))
+            pane = deep_get(resp, "pane_id")
+            if not pane:
+                raise HerdrError(f"pane split returned no pane_id: {resp}")
+            panes.append(str(pane))
+        time.sleep(1.5)
+        return panes, str(footer)
 
     def agent_status(self, pane_id: str) -> str:
         try:
@@ -313,9 +377,33 @@ def run(mode: str, prompt: str, cfg: dict, worker_names: list[str] | None = None
     hz.preflight()
 
     echo(f"run dir: {run_dir}")
-    panes = hz.make_layout(f"fusion {run_id}", len(workers))
+    fused_path = run_dir / "fused.md"
+    fusion = None
+    if mode == "fuse":
+        # Wide fusion-listener pane below the worker row, launched UP FRONT so it
+        # watches the answers land live instead of being spawned after the fact.
+        runner_name = fusion_runner or cfg["fusion"]["runner"]
+        if runner_name not in available:
+            raise SystemExit(f"fusion runner '{runner_name}' is not a configured worker")
+        panes, fusion_pane = hz.make_fuse_layout(f"fusion {run_id}", len(workers))
+        fusion = Worker("fusion", available[runner_name]["command"])
+        fusion.pane_id = fusion_pane
+    else:
+        panes = hz.make_layout(f"fusion {run_id}", len(workers))
+    hz.rename_origin_tab(tab_slug(mode, prompt))
     for worker, pane in zip(workers, panes):
         worker.pane_id = pane
+
+    if fusion is not None:
+        echo(f"launching fusion listener ({fusion.command})")
+        hz.launch(fusion, launch_timeout)
+        prompt_path = run_dir / "fusion.prompt.md"
+        prompt_path.write_text(
+            listen_prompt(workers, run_dir, fused_path, prompt, instruction, fusion_timeout))
+        hz.submit(fusion.pane_id, prompt_path)
+        fusion.status = "running"
+        hz.manifest["fusion"] = vars(fusion)
+        hz.save_manifest()
 
     for worker in workers:
         echo(f"launching {worker.name}: {worker.command}")
@@ -354,30 +442,8 @@ def run(mode: str, prompt: str, cfg: dict, worker_names: list[str] | None = None
         echo(f"RESULT {run_dir}")
         return 0 if len(survivors) == len(workers) else 2
 
-    # fuse: fresh pane below worker 1, zoomed for the convergence moment
-    runner_name = fusion_runner or cfg["fusion"]["runner"]
-    if runner_name not in available:
-        raise SystemExit(f"fusion runner '{runner_name}' is not a configured worker")
-    fusion = Worker("fusion", available[runner_name]["command"])
-    resp = hz.h("pane", "split", workers[0].pane_id, "--direction", "down",
-                "--no-focus", "--cwd", str(cwd))
-    fusion.pane_id = str(deep_get(resp, "pane_id"))
-    time.sleep(1.5)
-    try:
-        hz.h("pane", "zoom", fusion.pane_id, "--on")
-    except HerdrError:
-        pass
-    echo(f"launching fusion ({runner_name}): {fusion.command}")
-    hz.launch(fusion, launch_timeout)
-
-    fused_path = run_dir / "fused.md"
-    prompt_path = run_dir / "fusion.prompt.md"
-    prompt_path.write_text(merge_prompt(survivors, run_dir, fused_path, prompt, instruction))
-    hz.submit(fusion.pane_id, prompt_path)
-    fusion.status = "running"
-    hz.manifest["fusion"] = vars(fusion)
-    hz.save_manifest()
-
+    # fuse: the listener pane has been polling for the answers since launch and
+    # merges them the moment both land — just wait for its fused.md.
     echo(f"waiting for fusion (timeout {fusion_timeout:.0f}s)...")
     ok = hz.await_answer(fusion, fused_path, fusion_timeout)
     hz.manifest["fusion"] = vars(fusion)
