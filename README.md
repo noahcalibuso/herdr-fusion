@@ -7,23 +7,24 @@ fresh agent critically merge their answers into one.** No API keys, no per-token
 the interactive agent TUIs you already pay for.
 
 ```
-┌────────────┬────────────┬────────────┐
-│  CLAUDE    │    GPT     │    GROK    │   ← same prompt, independent answers
-│  claude    │  pi-agent  │  pi-agent  │
-├────────────┴────────────┴────────────┤
-│               FUSION                 │   ← merges all answers → fused.md
-└──────────────────────────────────────┘
+┌────────────┬────────────┐
+│  CLAUDE    │    GPT     │   ← same prompt, independent answers
+│  claude    │  pi-agent  │
+├────────────┴────────────┤
+│         FUSION          │   ← merges all answers → fused.md
+└─────────────────────────┘
 ```
 
 <!-- DEMO: replace with a recorded gif of a live run (see "Demo" below) -->
 > **Demo:** _recording coming — a real fan-out-then-converge run in herdr panes._
 
 A reimagining of [fusion-harness](https://github.com/disler/fusion-harness) rebuilt on
-[herdr](https://herdr.dev) panes and **subscription CLI agents**. One prompt fans out to N coding
-agents in parallel panes (Claude Code on your Claude plan; GPT via `pi` on the native `openai-codex`
-provider — swap in `cursor-agent`, extra models, or other CLIs via config). You watch them work.
-Then a fresh **fusion agent** merges the answers into one
-definitive result with inline attribution and a consensus/divergence report.
+[herdr](https://herdr.dev) panes and **CLI agents**, so that you can make use subscription
+rather than API usage. 
+
+Use the **/fusion** skill, One prompt fans out to N coding agents in parallel panes.
+Then a fresh **fusion agent** merges the answers into one definitive result with inline
+attribution and a consensus/divergence report.
 
 ### What this project demonstrates
 
@@ -91,63 +92,6 @@ Claude Code users can instead install via the plugin marketplace (same skills, C
 /plugin install herdr-fusion@herdr-fusion
 ```
 
-## Usage
-
-### Agent Skills (recommended)
-
-After installing the skills, ask your Agent Skills-compatible coding agent in natural language:
-
-> Use the fusion skill to have multiple models design a rate limiter for our API gateway, then
-> return one fused implementation plan.
-
-For a comparison without a merge, ask:
-
-> Use the opinion skill to compare whether we should migrate this repo from npm to pnpm. Have each
-> model cite evidence, and summarize where they agree and disagree.
-
-You can include supported run preferences in the request. For example:
-
-> Use the fusion skill with the `claude` and `gpt` workers. Merge their answers into one
-> implementation plan, preferring the simpler design when they conflict.
-
-The fusion skill translates those preferences to `--workers` and `--instruction`; the opinion
-skill supports worker selection. Choose the fusion runner/model and other advanced flags through
-[configuration](#configuration) or the [direct CLI](#direct-cli-manualadvanced).
-
-The skill handles the workflow on your behalf: it preflights the `herdr-fusion` command and the
-live herdr session, turns your request and relevant context into a self-contained prompt, and
-launches the workers in visible side-by-side panes. It waits for completion, reads `fused.md`
-(fusion) or `comparison.md` (opinion) together with `manifest.json`, then returns the result,
-reports worker failures or timeouts, and gives you the full artifact directory path. If the CLI is
-not installed or no herdr session is live, the skill stops and tells you what is needed.
-
-Some harnesses expose installed skills as slash commands, so `/fusion …` and `/opinion …` may also
-work there. Slash-command discovery and argument syntax vary by harness; the natural-language
-requests above are the portable interface.
-
-### Direct CLI (manual/advanced)
-
-To invoke the harness yourself, run from any shell pane **inside a herdr session** (the run lands
-in a new tab of that session):
-
-```bash
-# side-by-side comparison only (read-only workers)
-herdr-fusion opinion "Should we migrate this repo from npm to pnpm? Cite evidence."
-
-# full fan-out, then convergence into one answer
-herdr-fusion fuse "Design a rate limiter for our API gateway."
-
-# pick workers / merge instruction / fusion model per run
-herdr-fusion fuse "..." --workers claude,gpt --fusion claude \
-  --instruction "Produce a single implementation plan; prefer the simpler design on conflicts."
-```
-
-Every run gets a directory `/tmp/herdr-fusion/<project>/<run-id>/` with each worker's
-`<name>.prompt.md` and `<name>.md` answer, `comparison.md` (opinion) or `fused.md` (fuse), and a
-`manifest.json` of statuses and timings. The last stdout line is always `RESULT <run-dir>`.
-Exit codes: `0` all workers answered, `2` partial (some worker failed/timed out but a result was
-produced), `1` hard failure. Panes stay open afterwards — the side-by-side *is* the UI; close the
-tab when you're done reading.
 
 ## Configuration
 
@@ -183,29 +127,49 @@ has no model concept, so **model and effort are whatever flags that CLI accepts*
 Defining `[workers.*]` in a config file replaces the default set (your set is your set);
 `[fusion]` keys merge over defaults.
 
-## How it maps to fusion-harness
 
-| fusion-harness | herdr-fusion |
-|---|---|
-| `/opinion` (2 models, read-only, side-by-side columns) | `opinion` (N workers, read-only prompt, real panes + `comparison.md`) |
-| `/fusion` (2 workers + fresh fusion agent on the architect model) | `fuse` (N workers + fresh pane on `[fusion].runner`) |
-| Spawns `pi --mode json -p` subprocesses on API billing | Drives interactive subscription CLIs in herdr panes |
-| Worker/merge/opinion prompt templates | Same templates, generalized 2-way → N-way, in [src/herdr_fusion/prompts/](src/herdr_fusion/prompts/) |
-| Shared cwd, collisions avoided by prompt discipline | Same convention |
-| `/auto-validate` gate loop | Not ported (out of scope) |
+## Usage
 
-Handoff is file-based: each worker is told to write its complete answer to
-`<run-dir>/<name>.md`; the merge prompt inlines every answer (truncated at 60k chars) plus the
-authoritative file paths. Completion gating: answer file exists + stopped growing + agent status
-`idle`/`done` (herdr reports `done` when the pane is backgrounded, `idle` when focused — both
-mean finished).
+### Agent Skills (recommended)
 
-## Demo
+After installing the skills, ask your Agent Skills-compatible coding agent in natural language:
 
-To record the hero gif: start a herdr session, run
-`herdr-fusion fuse "Design a rate limiter for our API gateway."`, and screen-capture the tab as the
-panes fan out and the fusion pane zooms in to converge. Drop the file at `docs/demo.gif` and swap the
-placeholder line near the top of this README for `![demo](docs/demo.gif)`.
+> /fusion design a rate limiter for our API gateway, then return one fused implementation plan.
+
+For a comparison without a merge, ask:
+
+> /opinion should we migrate this repo from npm to pnpm. Cite and summarize evidence.
+
+You can include supported run preferences in the request. For example:
+
+> Use the fusion skill with the `claude` and `gpt` workers. Merge their answers into one
+> implementation plan, preferring the simpler design when they conflict.
+
+
+### Direct CLI (manual/advanced)
+
+To invoke the harness yourself, run from any shell pane **inside a herdr session** (the run lands
+in a new tab of that session):
+
+```bash
+# side-by-side comparison only (read-only workers)
+herdr-fusion opinion "Should we migrate this repo from npm to pnpm? Cite evidence."
+
+# full fan-out, then convergence into one answer
+herdr-fusion fuse "Design a rate limiter for our API gateway."
+
+# pick workers / merge instruction / fusion model per run
+herdr-fusion fuse "..." --workers claude,gpt --fusion claude \
+  --instruction "Produce a single implementation plan; prefer the simpler design on conflicts."
+```
+
+Every run gets a directory `/tmp/herdr-fusion/<project>/<run-id>/` with each worker's
+`<name>.prompt.md` and `<name>.md` answer, `comparison.md` (opinion) or `fused.md` (fuse), and a
+`manifest.json` of statuses and timings. The last stdout line is always `RESULT <run-dir>`.
+Exit codes: `0` all workers answered, `2` partial (some worker failed/timed out but a result was
+produced), `1` hard failure. Panes stay open afterwards — the side-by-side *is* the UI; close the
+tab when you're done reading.
+
 
 ## Development
 
