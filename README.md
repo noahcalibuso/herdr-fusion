@@ -93,7 +93,42 @@ Claude Code users can instead install via the plugin marketplace (same skills, C
 
 ## Usage
 
-Run from any shell pane **inside a herdr session** (the run lands in a new tab of that session):
+### Agent Skills (recommended)
+
+After installing the skills, ask your Agent Skills-compatible coding agent in natural language:
+
+> Use the fusion skill to have multiple models design a rate limiter for our API gateway, then
+> return one fused implementation plan.
+
+For a comparison without a merge, ask:
+
+> Use the opinion skill to compare whether we should migrate this repo from npm to pnpm. Have each
+> model cite evidence, and summarize where they agree and disagree.
+
+You can include supported run preferences in the request. For example:
+
+> Use the fusion skill with the `claude` and `gpt` workers. Merge their answers into one
+> implementation plan, preferring the simpler design when they conflict.
+
+The fusion skill translates those preferences to `--workers` and `--instruction`; the opinion
+skill supports worker selection. Choose the fusion runner/model and other advanced flags through
+[configuration](#configuration) or the [direct CLI](#direct-cli-manualadvanced).
+
+The skill handles the workflow on your behalf: it preflights the `herdr-fusion` command and the
+live herdr session, turns your request and relevant context into a self-contained prompt, and
+launches the workers in visible side-by-side panes. It waits for completion, reads `fused.md`
+(fusion) or `comparison.md` (opinion) together with `manifest.json`, then returns the result,
+reports worker failures or timeouts, and gives you the full artifact directory path. If the CLI is
+not installed or no herdr session is live, the skill stops and tells you what is needed.
+
+Some harnesses expose installed skills as slash commands, so `/fusion …` and `/opinion …` may also
+work there. Slash-command discovery and argument syntax vary by harness; the natural-language
+requests above are the portable interface.
+
+### Direct CLI (manual/advanced)
+
+To invoke the harness yourself, run from any shell pane **inside a herdr session** (the run lands
+in a new tab of that session):
 
 ```bash
 # side-by-side comparison only (read-only workers)
