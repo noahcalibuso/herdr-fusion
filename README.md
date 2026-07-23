@@ -50,7 +50,9 @@ that mattered, and what I'd build next.
 
 ## Install
 
-Try it with no install (npx-style, zero footprint):
+### CLI
+
+Try it with no install (uv's npx equivalent):
 
 ```bash
 uvx --from git+https://github.com/noahcalibuso/herdr-fusion herdr-fusion fuse "..."
@@ -62,9 +64,27 @@ Or install the `herdr-fusion` command permanently:
 uv tool install git+https://github.com/noahcalibuso/herdr-fusion
 ```
 
-As a **Claude Code plugin** (adds `/fusion` and `/opinion` skills so a Claude session can launch
-a run and pull the result back into its own context). Add this repo as a marketplace, then install
-from it:
+### Skills (any agent harness)
+
+The `fusion` and `opinion` skills are [Agent Skills](https://agentskills.io)-compatible — install
+them into Claude Code, Cursor, Codex, OpenCode, PI, and other supported harnesses with one
+command:
+
+```bash
+npx skills add noahcalibuso/herdr-fusion
+```
+
+Useful variants:
+
+```bash
+# list skills in this repo
+npx skills add noahcalibuso/herdr-fusion --list
+
+# global install / specific agents
+npx skills add noahcalibuso/herdr-fusion -g -a cursor -a claude-code -a codex
+```
+
+Claude Code users can instead install via the plugin marketplace (same skills, Claude-only path):
 
 ```
 /plugin marketplace add noahcalibuso/herdr-fusion
