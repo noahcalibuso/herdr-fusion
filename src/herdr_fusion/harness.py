@@ -309,9 +309,12 @@ class Harness:
         )
 
     def submit(self, pane_id: str, prompt_path: Path):
+        # `pane run` only starts shell commands; it can't type into an
+        # already-running agent TUI. Deliver the prompt as keystrokes instead.
         # One-line pointer sidesteps multi-line paste behavior in agent TUIs.
-        self.h("pane", "run", pane_id,
+        self.h("pane", "send-text", pane_id,
                f"Read the file {prompt_path} and follow the instructions in it exactly.")
+        self.h("pane", "send-keys", pane_id, "Enter")
 
     def await_answer(self, worker: Worker, answer_path: Path, timeout: float) -> bool:
         """Answer file exists, stopped growing, and the agent is no longer working.
